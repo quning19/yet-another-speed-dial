@@ -131,6 +131,7 @@ let settings = null;
 let speedDialId = null;
 let sortable = null;
 let folderNavTimeout = null;
+let subfolderNavTimeout = null;
 let targetTileHref = null;
 let targetTileId = null;
 let targetTileTitle = null;
@@ -240,6 +241,7 @@ async function buildDialPages(speedDialId, currentFolderId) {
     }
 
     const children = await getChildren(speedDialId);
+    console.log('[import] buildDialPages speedDial children:', children.length);
     if (!children.length) {
         // new install
         addFolderButton.style.display = 'none';
@@ -270,6 +272,7 @@ async function buildDialPages(speedDialId, currentFolderId) {
 
     // Process the current folder's children first
     const currentChildren = await getChildren(currentFolderId);
+    console.log('[import] buildDialPages currentFolder children:', currentFolderId, currentChildren.length);
     await printBookmarks(currentChildren, currentFolderId);
 
     // 确定二级菜单应基于哪个父文件夹
@@ -515,13 +518,13 @@ function subfolderDragenterHandler(ev) {
     // 导航到对应文件夹内容（用 switchSubfolder 而非 showFolder，不重建二级标签行）
     const folderId = el.getAttribute("subfolderid");
     const isBookmarkTab = el.getAttribute('is-bookmark-tab') === 'true';
-    clearTimeout(folderNavTimeout);
+    clearTimeout(subfolderNavTimeout);
     if (currentFolder !== folderId) {
-        folderNavTimeout = setTimeout(() => {
+        subfolderNavTimeout = setTimeout(() => {
             switchSubfolder(folderId, isBookmarkTab);
             scrollPos = 0;
             bookmarksContainerParent.scrollTop = scrollPos;
-        }, 350);
+        }, 1000);
     }
 }
 
@@ -530,7 +533,7 @@ function subfolderDragleaveHandler(ev) {
     if (el.contains(ev.relatedTarget)) return;
     el.classList.remove("drag-hover");
     if (!subfoldersContent.querySelector('.subfolder-tab.drag-hover')) {
-        clearTimeout(folderNavTimeout);
+        clearTimeout(subfolderNavTimeout);
     }
 }
 
@@ -836,10 +839,16 @@ function saveFolder() {
 
 function editFolder() {
     let title = editFolderModalName.value.trim();
+    const isSubfolder = folders.indexOf(targetFolder) === -1;
+
     chrome.bookmarks.update(targetFolder, {
         title
     }).then(node => {
         hideModals();
+        // 子文件夹改名后刷新二级标签，一级文件夹由 background reloadFolders 处理
+        if (isSubfolder && currentSubFolderParent) {
+            buildSubfolderTabs(currentSubFolderParent);
+        }
     }).catch(err => {
         console.log(err);
     });
@@ -859,27 +868,40 @@ function refreshThumbnails(url, tileid) {
 }
 
 function removeFolder() {
+    const isSubfolder = folders.indexOf(targetFolder) === -1;
+
     chrome.bookmarks.removeTree(targetFolder).then(() => {
         hideModals();
-        targetFolderLink?.remove();
-        folders.splice(folders.indexOf(targetFolder), 1);
-        if (!folders.length) {
-            //document.getElementById('homeFolderLink').remove();
-            // todo: better manager this state
-        }
 
-        if (currentFolder === targetFolder || currentSubFolderParent === targetFolder) {
-            currentFolder = speedDialId;
-            currentSubFolder = null;
-            currentSubFolderParent = null;
-            bookmarksContainerParent.scrollTop = scrollPos;
-            showFolder(speedDialId);
-            settings.currentFolder = speedDialId;
-            chrome.storage.local.set({ settings })
+        if (isSubfolder) {
+            // 子文件夹：重建二级标签，当前视图在子文件夹中则切回父文件夹
+            if (currentSubFolderParent) {
+                buildSubfolderTabs(currentSubFolderParent);
+            }
+            if (currentFolder === targetFolder || currentSubFolder === targetFolder) {
+                currentFolder = currentSubFolderParent || speedDialId;
+                currentSubFolder = null;
+                bookmarksContainerParent.scrollTop = scrollPos;
+                showFolder(currentFolder);
+            }
+        } else {
+            // 一级文件夹：原有逻辑
+            targetFolderLink?.remove();
+            var idx = folders.indexOf(targetFolder);
+            if (idx !== -1) folders.splice(idx, 1);
+            if (!folders.length) {
+                // todo: better manager this state
+            }
+            if (currentFolder === targetFolder || currentSubFolderParent === targetFolder) {
+                currentFolder = speedDialId;
+                currentSubFolder = null;
+                currentSubFolderParent = null;
+                bookmarksContainerParent.scrollTop = scrollPos;
+                showFolder(speedDialId);
+                settings.currentFolder = speedDialId;
+                chrome.storage.local.set({ settings })
+            }
         }
-
-        // todo: clean up this node or do it on refresh
-        // document.getElementById(targetFolder).remove();
     });
 }
 
@@ -2213,6 +2235,12 @@ document.addEventListener("contextmenu", function (e) {
         targetTileTitle = e.target.nextElementSibling.innerText;
         showContextMenu(menu, e.pageY, e.pageX);
         return false;
+    } else if (e.target.classList.contains('subfolder-tab') && e.target.getAttribute('is-bookmark-tab') !== 'true') {
+        targetFolderLink = e.target;
+        targetFolder = e.target.getAttribute('subfolderId');
+        targetFolderName = e.target.textContent;
+        showContextMenu(folderMenu, e.pageY, e.pageX);
+        return false;
     } else if (e.target.classList.contains('folderTitle') && e.target.id !== "homeFolderLink") {
         targetFolderLink = e.target;
         targetFolder = e.target.attributes.folderId.nodeValue;
@@ -2678,7 +2706,8 @@ function prepareExport() {
                     yasdJson.yasd.folders.push({
                         id: node.id,
                         title: node.title,
-                        index: node.index
+                        index: node.index,
+                        parentId: parentId
                     });
                     if (node.children) {
                         traverseBookmarks(node.children, node.id);
@@ -2728,6 +2757,11 @@ importExportBtn.onclick = function () {
     prepareExport();
     modalShowEffect(importExportModalContent, importExportModal);
 }
+
+exportBtn.addEventListener('click', function () {
+    var filename = exportBtn.download || 'settings.json';
+    importExportStatus.innerText = 'Exported: ' + filename;
+});
 
 helpBtn.onclick = function () {
     chrome.tabs.create({ url: helpUrl });
@@ -2882,9 +2916,12 @@ function importFromSD2(json) {
             return Promise.all(bookmarkPromises);
         }).then(() => {
             hideModals();
-            // refresh page
-            processRefresh();
+            currentFolder = speedDialId;
+            currentSubFolder = null;
+            currentSubFolderParent = null;
+            hideModals();
             chrome.runtime.sendMessage({ target: 'background', type: 'toggleBookmarkCreatedListener', data: { enable: true } });
+            setTimeout(function () { location.reload(); }, 500);
         }).catch(err => {
             console.log(err)
             importExportStatus.innerText = "SD2 import error! Unable to create folders."
@@ -2947,9 +2984,12 @@ function importFromFVD(json) {
             return Promise.all(bookmarkPromises);
         }).then(() => {
             hideModals();
-            // refresh page
-            processRefresh();
+            currentFolder = speedDialId;
+            currentSubFolder = null;
+            currentSubFolderParent = null;
+            hideModals();
             chrome.runtime.sendMessage({ target: 'background', type: 'toggleBookmarkCreatedListener', data: { enable: true } });
+            setTimeout(function () { location.reload(); }, 500);
         }).catch(err => {
             console.log(err);
             importExportStatus.innerText = "FVD import error! Unable to create folders.";
@@ -2980,58 +3020,75 @@ function importFromYASD(json) {
             return chrome.storage.local.set({ [url]: dialData });
         });
 
-        // Create folders and get their IDs
-        let folderPromises = yasdData.folders.sort((a, b) => a.index - b.index).map(folder => {
-            return chrome.bookmarks.search({ title: folder.title }).then(existingFolders => {
-                const matchingFolders = existingFolders.filter(f => f.parentId === speedDialId);
-                if (matchingFolders.length > 0) {
-                    return { oldId: folder.id, newId: matchingFolders[0].id };
+        // 分离一级文件夹和子文件夹（兼容旧版无 parentId 的导出）
+        const topFolders = yasdData.folders.filter(f => !f.parentId);
+        const subFolders = yasdData.folders.filter(f => f.parentId);
+
+        async function createFolders(folders, parentIdFn) {
+            const sorted = folders.sort((a, b) => a.index - b.index);
+            const mappings = [];
+            for (const folder of sorted) {
+                const targetParentId = parentIdFn(folder);
+                const existing = await chrome.bookmarks.search({ title: folder.title });
+                const matching = existing.filter(f => f.parentId === targetParentId);
+                if (matching.length > 0) {
+                    mappings.push({ oldId: folder.id, newId: matching[0].id });
                 } else {
-                    return chrome.bookmarks.create({
+                    const node = await chrome.bookmarks.create({
                         title: folder.title,
-                        parentId: speedDialId
-                    }).then(node => {
-                        return { oldId: folder.id, newId: node.id };
+                        parentId: targetParentId
                     });
+                    mappings.push({ oldId: folder.id, newId: node.id });
                 }
-            });
-        });
+            }
+            return mappings;
+        }
 
-        Promise.all(folderPromises).then(folderIdMappings => {
+        // 先创建一级文件夹，再创建子文件夹（需要父文件夹的新 ID）
+        console.log('[import] starting folder creation, topFolders:', topFolders.length, 'subFolders:', subFolders.length);
+
+        createFolders(topFolders, function () { return speedDialId; }).then(function (topMappings) {
+            console.log('[import] top folders created:', topMappings.length);
             let folderIdMap = {};
-            folderIdMappings.forEach(mapping => {
-                folderIdMap[mapping.oldId] = mapping.newId;
-            });
+            topMappings.forEach(function (m) { folderIdMap[m.oldId] = m.newId; });
 
-            // Create bookmarks using the new folder IDs
-            let bookmarkPromises = yasdData.bookmarks.map(bookmark => {
-                let parentId = folderIdMap[bookmark.folderid] || speedDialId;
-                return chrome.bookmarks.search({ url: bookmark.url }).then(existingBookmarks => {
-                    let existsInFolder = existingBookmarks.some(b => b.parentId === parentId);
-                    if (!existsInFolder) {
-                        return chrome.bookmarks.create({
-                            title: bookmark.title,
-                            url: bookmark.url,
-                            parentId: parentId
-                        });
-                    }
+            console.log('[import] creating subfolders...');
+            return createFolders(subFolders, function (f) { return folderIdMap[f.parentId]; }).then(function (subMappings) {
+                console.log('[import] subfolders created:', subMappings.length);
+                subMappings.forEach(function (m) { folderIdMap[m.oldId] = m.newId; });
+
+                console.log('[import] creating bookmarks, count:', yasdData.bookmarks.length);
+                // Create bookmarks using the new folder IDs
+                let bookmarkPromises = yasdData.bookmarks.map(function (bookmark) {
+                    let parentId = folderIdMap[bookmark.folderid] || speedDialId;
+                    return chrome.bookmarks.search({ url: bookmark.url }).then(function (existingBookmarks) {
+                        let existsInFolder = existingBookmarks.some(function (b) { return b.parentId === parentId; });
+                        if (!existsInFolder) {
+                            return chrome.bookmarks.create({
+                                title: bookmark.title,
+                                url: bookmark.url,
+                                parentId: parentId
+                            });
+                        }
+                    });
+                });
+
+                console.log('[import] waiting for all promises...');
+                return Promise.all(dialPromises.concat(bookmarkPromises)).then(function () {
+                    console.log('[import] all done, reloading in 500ms...');
+                    hideModals();
+                    chrome.runtime.sendMessage({ target: 'background', type: 'toggleBookmarkCreatedListener', data: { enable: true } });
+                    setTimeout(function () { location.reload(); }, 500);
+                }).catch(function (err) {
+                    console.log('[import] bookmark creation error:', err);
+                    importExportStatus.innerText = "Error! Unable to import bookmarks and dials.";
                 });
             });
-
-            Promise.all([...dialPromises, ...bookmarkPromises]).then(() => {
-                hideModals();
-                // Refresh page
-                processRefresh();
-                chrome.runtime.sendMessage({ target: 'background', type: 'toggleBookmarkCreatedListener', data: { enable: true } });
-            }).catch(err => {
-                console.log(err);
-                importExportStatus.innerText = "Error! Unable to import bookmarks and dials.";
-            });
-        }).catch(err => {
-            console.log(err);
+        }).catch(function (err) {
+            console.log('[import] folder creation error:', err);
             importExportStatus.innerText = "Error! Unable to create folders.";
         });
-    }).catch(err => {
+    }).catch(function (err) {
         console.log(err);
         importExportStatus.innerText = "Something went wrong. Please try again.";
     });
@@ -3042,10 +3099,8 @@ function importFromOldYASD(json) {
     chrome.storage.local.clear().then(() => {
         chrome.storage.local.set(json).then(result => {
             hideModals();
-            // refresh page
-            //tabMessagePort.postMessage({handleImport: true});
-            processRefresh();
             chrome.runtime.sendMessage({ target: 'background', type: 'toggleBookmarkCreatedListener', data: { enable: true } });
+            setTimeout(function () { location.reload(); }, 500);
         }).catch(err => {
             console.log(err)
             importExportStatus.innerText = "Error! Unable to parse file."
@@ -3150,6 +3205,7 @@ function onEndHandler(evt) {
 
     // 清除拖拽导航定时器，防止拖拽后触发导航
     clearTimeout(folderNavTimeout);
+    clearTimeout(subfolderNavTimeout);
 
     if (evt && evt.clone.href) {
         let id = evt.clone.dataset.id;
