@@ -44,6 +44,12 @@
   "dialRatio": {
     "message": "Формат закладок"
   },
+  "folderTabFontSize": {
+    "message": "Размер шрифта вкладки папки"
+  },
+  "subfolderTabFontSize": {
+    "message": "Размер шрифта вкладки подпапки"
+  },
   "dialSize": {
     "message": "Размер закладок"
   },
@@ -177,6 +183,12 @@
   },
   "wallpaper": {
     "message": "Фоновое изображение"
+  },
+  "sectionDisplay": {
+    "message": "Настройки отображения"
+  },
+  "sectionFunction": {
+    "message": "Настройки функций"
   },
   "optionSquare": {
     "message": "Квадрат"

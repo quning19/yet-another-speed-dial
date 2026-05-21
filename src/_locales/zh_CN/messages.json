@@ -44,6 +44,12 @@
   "dialRatio": {
     "message": "拨号格式"
   },
+  "folderTabFontSize": {
+    "message": "页签字号"
+  },
+  "subfolderTabFontSize": {
+    "message": "子页签字号"
+  },
   "dialSize": {
     "message": "拨号大小"
   },
@@ -177,6 +183,12 @@
   },
   "wallpaper": {
     "message": "壁纸"
+  },
+  "sectionDisplay": {
+    "message": "显示设置"
+  },
+  "sectionFunction": {
+    "message": "功能设置"
   },
   "optionSquare": {
     "message": "正方形"

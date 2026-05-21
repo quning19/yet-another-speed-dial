@@ -44,6 +44,12 @@
   "dialRatio": {
     "message": "Format wybierania"
   },
+  "folderTabFontSize": {
+    "message": "Rozmiar czcionki karty folderu"
+  },
+  "subfolderTabFontSize": {
+    "message": "Rozmiar czcionki karty podfolderu"
+  },
   "dialSize": {
     "message": "Rozmiar wybierania"
   },
@@ -177,6 +183,12 @@
   },
   "wallpaper": {
     "message": "Tapeta"
+  },
+  "sectionDisplay": {
+    "message": "Ustawienia wyświetlania"
+  },
+  "sectionFunction": {
+    "message": "Ustawienia funkcji"
   },
   "optionSquare": {
     "message": "Kwadratowy"

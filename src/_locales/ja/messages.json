@@ -44,6 +44,12 @@
   "dialRatio": {
     "message": "ダイヤルフォーマット"
   },
+  "folderTabFontSize": {
+    "message": "フォルダタブのフォントサイズ"
+  },
+  "subfolderTabFontSize": {
+    "message": "サブフォルダタブのフォントサイズ"
+  },
   "dialSize": {
     "message": "ダイヤルサイズ"
   },
@@ -177,6 +183,12 @@
   },
   "wallpaper": {
     "message": "壁紙"
+  },
+  "sectionDisplay": {
+    "message": "表示設定"
+  },
+  "sectionFunction": {
+    "message": "機能設定"
   },
   "optionSquare": {
     "message": "正方形"

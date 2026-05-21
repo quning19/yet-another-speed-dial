@@ -110,6 +110,8 @@ const helpBtn = document.getElementById("help");
 const resetSettingsBtn = document.getElementById("resetSettingsBtn");
 const dialSizeInput = document.getElementById("dialSize");
 const dialRatioInput = document.getElementById("dialRatio");
+const folderTabFontSizeInput = document.getElementById("folderTabFontSize");
+const subfolderTabFontSizeInput = document.getElementById("subfolderTabFontSize");
 
 const searchInput = document.getElementById('searchInput');
 const searchContainer = document.getElementById('searchContainer');
@@ -172,6 +174,8 @@ let defaults = {
     textColor: '#ffffff',
     dialSize: 'large',
     dialRatio: 'wide',
+    folderTabFontSize: 'medium',
+    subfolderTabFontSize: 'medium',
     currentFolder: null,
 };
 
@@ -556,65 +560,69 @@ async function buildSubfolderTabs(parentFolderId) {
     // 按 index 排序
     subfolders.sort((a, b) => (a.index || 0) - (b.index || 0));
 
-    // 清空第二层容器
-    subfoldersContent.innerHTML = '';
+    // 拖拽进行中不重建标签 DOM——_onDragStart 会崩溃
+    // 旧标签留在原地，松手后后台刷新会通过 buildDialPages 正确重建
+    if (!isDragging) {
+        // 清空第二层容器
+        subfoldersContent.innerHTML = '';
 
-    // 获取父文件夹标题（用于"书签"标签）
-    let parentTitle = homeFolderTitle;
-    if (parentFolderId !== speedDialId) {
-        const parentNode = await chrome.bookmarks.get(parentFolderId);
-        if (token !== buildSubfolderTabsToken) return;
-        if (parentNode && parentNode.length > 0) {
-            parentTitle = parentNode[0].title;
-        }
-    }
-
-    // 创建第一个"书签"标签（高亮）
-    const bookmarkTab = document.createElement('a');
-    bookmarkTab.classList.add('subfolder-tab', 'active');
-    bookmarkTab.setAttribute('subfolderId', parentFolderId);
-    bookmarkTab.setAttribute('is-bookmark-tab', 'true');
-    const bookmarkLabel = chrome.i18n.getMessage('bookmarks') || '书签';
-    bookmarkTab.textContent = parentTitle + ' ' + bookmarkLabel;
-    bookmarkTab.onclick = function () {
-        switchSubfolder(parentFolderId, true);
-    };
-    bookmarkTab.ondragenter = subfolderDragenterHandler;
-    bookmarkTab.ondragleave = subfolderDragleaveHandler;
-    subfoldersContent.appendChild(bookmarkTab);
-
-    // 创建子文件夹标签
-    for (let subfolder of subfolders) {
-        const tab = document.createElement('a');
-        tab.classList.add('subfolder-tab');
-        tab.setAttribute('subfolderId', subfolder.id);
-        tab.textContent = subfolder.title;
-        tab.onclick = function () {
-            switchSubfolder(subfolder.id, false);
-        };
-        tab.ondragenter = subfolderDragenterHandler;
-        tab.ondragleave = subfolderDragleaveHandler;
-        subfoldersContent.appendChild(tab);
-    }
-
-    // 添加 [+ ] 新增子文件夹按钮
-    addSubFolderButton.onclick = function () {
-        createSubFolder(parentFolderId);
-    };
-
-    // 根据当前状态决定哪个标签高亮
-    // 如果正在查看此父文件夹的某个子文件夹，激活对应标签；否则激活"书签"标签
-    if (currentSubFolder !== null && currentSubFolderParent === parentFolderId) {
-        bookmarkTab.classList.remove('active');
-        const tabs = subfoldersContent.getElementsByClassName('subfolder-tab');
-        for (let tab of tabs) {
-            if (tab.getAttribute('subfolderId') === currentSubFolder) {
-                tab.classList.add('active');
-                break;
+        // 获取父文件夹标题（用于"书签"标签）
+        let parentTitle = homeFolderTitle;
+        if (parentFolderId !== speedDialId) {
+            const parentNode = await chrome.bookmarks.get(parentFolderId);
+            if (token !== buildSubfolderTabsToken) return;
+            if (parentNode && parentNode.length > 0) {
+                parentTitle = parentNode[0].title;
             }
         }
-    } else {
-        currentSubFolder = null;
+
+        // 创建第一个"书签"标签（高亮）
+        const bookmarkTab = document.createElement('a');
+        bookmarkTab.classList.add('subfolder-tab', 'active');
+        bookmarkTab.setAttribute('subfolderId', parentFolderId);
+        bookmarkTab.setAttribute('is-bookmark-tab', 'true');
+        const bookmarkLabel = chrome.i18n.getMessage('bookmarks') || '书签';
+        bookmarkTab.textContent = parentTitle + ' ' + bookmarkLabel;
+        bookmarkTab.onclick = function () {
+            switchSubfolder(parentFolderId, true);
+        };
+        bookmarkTab.ondragenter = subfolderDragenterHandler;
+        bookmarkTab.ondragleave = subfolderDragleaveHandler;
+        subfoldersContent.appendChild(bookmarkTab);
+
+        // 创建子文件夹标签
+        for (let subfolder of subfolders) {
+            const tab = document.createElement('a');
+            tab.classList.add('subfolder-tab');
+            tab.setAttribute('subfolderId', subfolder.id);
+            tab.textContent = subfolder.title;
+            tab.onclick = function () {
+                switchSubfolder(subfolder.id, false);
+            };
+            tab.ondragenter = subfolderDragenterHandler;
+            tab.ondragleave = subfolderDragleaveHandler;
+            subfoldersContent.appendChild(tab);
+        }
+
+        // 添加 [+ ] 新增子文件夹按钮
+        addSubFolderButton.onclick = function () {
+            createSubFolder(parentFolderId);
+        };
+
+        // 根据当前状态决定哪个标签高亮
+        // 如果正在查看此父文件夹的某个子文件夹，激活对应标签；否则激活"书签"标签
+        if (currentSubFolder !== null && currentSubFolderParent === parentFolderId) {
+            bookmarkTab.classList.remove('active');
+            const tabs = subfoldersContent.getElementsByClassName('subfolder-tab');
+            for (let tab of tabs) {
+                if (tab.getAttribute('subfolderId') === currentSubFolder) {
+                    tab.classList.add('active');
+                    break;
+                }
+            }
+        } else {
+            currentSubFolder = null;
+        }
     }
 
     // 为第二层添加拖拽排序支持（仅用于子文件夹标签排序）
@@ -1991,35 +1999,35 @@ function applySettings() {
                     dialHeight = settings.dialRatio === "square" ? '318px' : '189px';
                     dialContentHeight = settings.dialRatio === "square" ? '300px' : '171px';
                     dialMargin = '14px';
-                    folderDropPadding = '80px';
+                    folderDropPadding = '40px';
                     break;
                 case "x-large":
                     dialWidth = '256px';
                     dialHeight = settings.dialRatio === "square" ? '274px' : '162px';
                     dialContentHeight = settings.dialRatio === "square" ? '256px' : '144px';
                     dialMargin = '14px';
-                    folderDropPadding = '70px';
+                    folderDropPadding = '36px';
                     break;
                 case "medium":
                     dialWidth = '178px';
                     dialHeight = settings.dialRatio === "square" ? '196px' : '118px';
                     dialContentHeight = settings.dialRatio === "square" ? '178px' : '100px';
                     dialMargin = '14px';
-                    folderDropPadding = '45px';
+                    folderDropPadding = '28px';
                     break;
                 case "small":
                     dialWidth = '130px';
                     dialHeight = settings.dialRatio === "square" ? '148px' : '91px';
                     dialContentHeight = settings.dialRatio === "square" ? '130px' : '73px';
                     dialMargin = '14px';
-                    folderDropPadding = '35px';
+                    folderDropPadding = '24px';
                     break;
                 case "x-small":
                     dialWidth = '100px';
                     dialHeight = settings.dialRatio === "square" ? '118px' : '74px';
                     dialContentHeight = settings.dialRatio === "square" ? '100px' : '56px';
                     dialMargin = '12px';
-                    folderDropPadding = '25px';
+                    folderDropPadding = '20px';
                     break;
                 case "xx-small":
                     dialWidth = '80px';
@@ -2033,17 +2041,23 @@ function applySettings() {
                     dialHeight = settings.dialRatio === "square" ? '238px' : '142px';
                     dialContentHeight = settings.dialRatio === "square" ? '220px' : '124px';
                     dialMargin = '14px';
-                    folderDropPadding = '60px';
+                    folderDropPadding = '40px';
             }
             document.documentElement.style.setProperty('--dial-width', dialWidth);
             document.documentElement.style.setProperty('--dial-height', dialHeight);
             document.documentElement.style.setProperty('--dial-content-height', dialContentHeight);
             document.documentElement.style.setProperty('--dial-margin', dialMargin);
             document.documentElement.style.setProperty('--folder-drop-padding', folderDropPadding);
+            document.documentElement.style.setProperty('--folder-tab-font-size', settings.folderTabFontSize);
+            document.documentElement.style.setProperty('--subfolder-tab-font-size', settings.subfolderTabFontSize);
+            document.documentElement.style.setProperty('--subfolder-drop-padding', '24px');
         } else {
             document.documentElement.style.setProperty('--dial-width', '220px');
             document.documentElement.style.setProperty('--dial-margin', '14px');
-            document.documentElement.style.setProperty('--folder-drop-padding', '60px');
+            document.documentElement.style.setProperty('--folder-drop-padding', '40px');
+            document.documentElement.style.setProperty('--folder-tab-font-size', settings.folderTabFontSize);
+            document.documentElement.style.setProperty('--subfolder-tab-font-size', settings.subfolderTabFontSize);
+            document.documentElement.style.setProperty('--subfolder-drop-padding', '24px');
             if (settings.dialRatio === "square") {
                 document.documentElement.style.setProperty('--dial-height', '238px');
                 document.documentElement.style.setProperty('--dial-content-height', '220px');
@@ -2111,23 +2125,27 @@ function applySettings() {
         maxColsInput.value = settings.maxCols;
         dialSizeInput.value = settings.dialSize;
         dialRatioInput.value = settings.dialRatio;
+        folderTabFontSizeInput.value = settings.folderTabFontSize;
+        subfolderTabFontSizeInput.value = settings.subfolderTabFontSize;
         defaultSortInput.value = settings.defaultSort;
         rememberFolderInput.checked = settings.rememberFolder;
 
         if (settings.wallpaperSrc) {
             imgPreview.setAttribute('src', settings.wallpaperSrc);
-            //imgPreview.style.display = 'block';
+            // 立即设置显示状态，而非等到 onload（缓存图不会触发 onload）
+            if (settings.wallpaper) {
+                backgroundColorContainer.style.display = "none";
+                previewContainer.style.display = 'flex';
+                previewContainer.style.opacity = imgPreview.complete && imgPreview.naturalWidth ? '1' : '0';
+            } else {
+                backgroundColorContainer.style.display = "flex";
+                previewContainer.style.display = 'none';
+            }
             imgPreview.onload = function (e) {
                 if (settings.wallpaper) {
                     backgroundColorContainer.style.display = "none";
+                    previewContainer.style.display = 'flex';
                     previewContainer.style.opacity = '1';
-                    switchesContainer.style.transform = "translateY(0)";
-
-                    //backgroundColorContainer.style.display = 'none';
-                } else {
-                    backgroundColorContainer.style.display = "flex";
-                    previewContainer.style.opacity = '0';
-                    switchesContainer.style.transform = `translateY(-${previewContainer.offsetHeight}px)`;
                 }
             }
             imgPreview.onerror = function (e) {
@@ -2156,6 +2174,8 @@ function saveSettings() {
     settings.maxCols = maxColsInput.value;
     settings.dialSize = dialSizeInput.value;
     settings.dialRatio = dialRatioInput.value;
+    settings.folderTabFontSize = folderTabFontSizeInput.value;
+    settings.subfolderTabFontSize = subfolderTabFontSizeInput.value;
     settings.defaultSort = defaultSortInput.value;
     settings.rememberFolder = rememberFolderInput.checked;
     settings.currentFolder = currentFolder ? currentFolder : speedDialId;
@@ -2238,7 +2258,7 @@ window.addEventListener("auxclick", e => {
 // listen for menu item
 window.addEventListener("mousedown", e => {
     hideMenus();
-    if (e.target.type === 'text' || e.target.id === 'maxcols' || e.target.id === 'defaultSort' || e.target.id === 'dialSize' || e.target.id === 'dialRatio') {
+    if (e.target.type === 'text' || e.target.id === 'maxcols' || e.target.id === 'defaultSort' || e.target.id === 'dialSize' || e.target.id === 'dialRatio' || e.target.id === 'folderTabFontSize' || e.target.id === 'subfolderTabFontSize') {
         return
     }
     if (e.target.className.baseVal === 'gear') {
@@ -2432,6 +2452,14 @@ dialSizeInput.oninput = function (e) {
 }
 
 dialRatioInput.oninput = function (e) {
+    saveSettings()
+}
+
+folderTabFontSizeInput.oninput = function (e) {
+    saveSettings()
+}
+
+subfolderTabFontSizeInput.oninput = function (e) {
     saveSettings()
 }
 
@@ -2663,8 +2691,8 @@ function prepareExport() {
         // Get YASD settings and thumbnails from storage
         chrome.storage.local.get(null).then(items => {
             for (const [key, value] of Object.entries(items)) {
-                if (key.startsWith('settings')) {
-                    yasdJson.yasd.settings[key] = value;
+                if (key === 'settings') {
+                    yasdJson.yasd.settings = value;
                 } else if (key.startsWith('http') || key.startsWith('file:') || key.startsWith('chrome:')) {
                     let thumbnails = [];
                     if (value.thumbnails && value.thumbnails.length) {
@@ -2939,9 +2967,10 @@ function importFromYASD(json) {
         
     // Clear previous settings and import new data
     chrome.storage.local.clear().then(() => {
-        // Store settings
+        // Store settings — 兼容旧版双层嵌套 { settings: { settings: {...} } }
         if (yasdData.settings) {
-            chrome.storage.local.set({ settings: yasdData.settings });
+            const settings = yasdData.settings.settings || yasdData.settings;
+            chrome.storage.local.set({ settings });
         }
 
         // Store dials

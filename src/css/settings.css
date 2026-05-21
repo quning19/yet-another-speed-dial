@@ -2,7 +2,10 @@
     width: 100%;
     padding: 14px 25px;
     height: 100%;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    position: relative;
 }
 
 #settingsDiv {
@@ -14,22 +17,44 @@
     display: none;
 }
 
-.sidenav h1 {
-    font-weight: bold;
+.sidenav h3 {
     font-size: large;
-    /*
-    background-image: url('../icons/icon48-white.png');
-    background-repeat: no-repeat;
-    background-position: right;
-     */
+    font-weight: bold;
+    color: #75FB4C;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 0 0 8px 0;
+    padding: 0;
+}
+
+.settings-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+.settings-column-left {
+    min-width: 0;
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    padding-right: 24px;
+}
+
+.settings-column-right {
+    min-width: 0;
+}
+
+.sidenav label {
+    font-size: medium;
 }
 
 .sidenav hr {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.sidenav div {
-    padding: 0.3em 0;
+.sidenav .row {
+    padding-top: 0.3em;
+    padding-bottom: 0.3em;
 }
 
 .sidenav .closeBtn {
@@ -114,6 +139,7 @@
 
 .sidenav #switchesContainer {
     transition: all 160ms ease;
+    margin-top: 24px;
 }
 
 .sidenav .row {
@@ -249,19 +275,19 @@
 
 .settingsLink {
     height: 25px;
-    color: #aaaaaa;
+    color: #ffffff;
 }
 
 .settingsLink:hover {
-    color: #ccc;
+    color: #75FB4C;
 }
 
 .settingsLinkDanger {
-    color: #cc6666;
+    color: #ff4444;
 }
 
 .settingsLinkDanger:hover {
-    color: #ff6666;
+    color: #ff8888;
 }
 
 .sidenav #settingsToast {

@@ -47,6 +47,12 @@
   "dialSize": {
     "message": "Dial Size"
   },
+  "folderTabFontSize": {
+    "message": "Folder Tab Font"
+  },
+  "subfolderTabFontSize": {
+    "message": "Subfolder Tab Font"
+  },
   "edit": {
     "message": "Edit"
   },
@@ -177,6 +183,12 @@
   },
   "wallpaper": {
     "message": "Wallpaper"
+  },
+  "sectionDisplay": {
+    "message": "Display"
+  },
+  "sectionFunction": {
+    "message": "Function"
   },
   "optionSquare": {
     "message": "Square"

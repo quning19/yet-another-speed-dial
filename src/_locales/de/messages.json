@@ -44,6 +44,12 @@
   "dialRatio": {
     "message": "Dial Format"
   },
+  "folderTabFontSize": {
+    "message": "Ordner Tab Schriftgröße"
+  },
+  "subfolderTabFontSize": {
+    "message": "Unterordner Tab Schriftgröße"
+  },
   "dialSize": {
     "message": "Dial Size"
   },
@@ -177,6 +183,12 @@
   },
   "wallpaper": {
     "message": "Hintergrund"
+  },
+  "sectionDisplay": {
+    "message": "Anzeigeeinstellungen"
+  },
+  "sectionFunction": {
+    "message": "Funktionseinstellungen"
   },
   "optionSquare": {
     "message": "Quadratisch"

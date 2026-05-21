@@ -281,30 +281,34 @@
 
         <button id="closeSettingsBtn" class="closeBtn" title="Close Settings">&times;</button>
 
-        <div class='row'>
-            <div class='column'>
-                <label data-locale="wallpaper">Wallpaper</label>
-            </div>
-            <div class='column controls'>
-                <label class="switch">
-                    <input checked class="settingsCtl" id="wallpaper" type="checkbox">
-                    <span class="slider round settingsCtl"></span>
-                </label>
-            </div>
-        </div>
-        <div class='row' id="previewContainer">
-            <div class='column'>
-            </div>
-            <div class='column controls' style="position: relative;">
-                <img id="preview" src="#">
-                <div id="previewOverlay"></div>
-                <input accept="image/*" class="settingsCtl" id="file" type="file">
-                <!--<label for="file" class="settingsCtl" data-locale="browse">Browse...</label>-->
-                <!--<a id="resetWallpaper" href="#">Reset</a>-->
-            </div>
-        </div>
         <div id='switchesContainer'>
 
+            <div class="settings-columns">
+
+            <div class="settings-column-left">
+
+            <h3 data-locale="sectionDisplay">Display</h3>
+
+            <div class='row'>
+                <div class='column'>
+                    <label data-locale="wallpaper">Wallpaper</label>
+                </div>
+                <div class='column controls'>
+                    <label class="switch">
+                        <input checked class="settingsCtl" id="wallpaper" type="checkbox">
+                        <span class="slider round settingsCtl"></span>
+                    </label>
+                </div>
+            </div>
+            <div class='row' id="previewContainer">
+                <div class='column'>
+                </div>
+                <div class='column controls' style="position: relative;">
+                    <img id="preview" src="#">
+                    <div id="previewOverlay"></div>
+                    <input accept="image/*" class="settingsCtl" id="file" type="file">
+                </div>
+            </div>
             <div class='row' id="backgroundColorContainer">
                 <div class='column'>
                     <label data-locale="backgroundColor">Background Color</label>
@@ -315,6 +319,9 @@
                     </div>
                 </div>
             </div>
+
+            <hr>
+
             <div class='row'>
                 <div class='column'>
                     <label data-locale="textColor">Text Color</label>
@@ -327,15 +334,38 @@
             </div>
             <div class='row'>
                 <div class='column'>
-                    <label data-locale="dialRatio">Dial Ratio</label>
+                    <label data-locale="folderTabFontSize">Folder Tab Font</label>
                 </div>
                 <div class='column controls'>
-                    <select class="settingsCtl" id="dialRatio" name="dialRatio">
-                        <option value="square" data-locale="optionSquare">Square</option>
-                        <option value="wide" data-locale="optionWide">Wide</option>
+                    <select class="settingsCtl" id="folderTabFontSize" name="folderTabFontSize">
+                        <option value="xx-small" data-locale="optionXXSmall">XX-Small</option>
+                        <option value="x-small" data-locale="optionXSmall">X-Small</option>
+                        <option value="small" data-locale="optionSmall">Small</option>
+                        <option value="medium" data-locale="optionMedium">Medium</option>
+                        <option value="large" data-locale="optionLarge">Large</option>
+                        <option value="x-large" data-locale="optionXLarge">X-Large</option>
+                        <option value="xx-large" data-locale="optionXXLarge">XX-Large</option>
                     </select>
                 </div>
             </div>
+            <div class='row'>
+                <div class='column'>
+                    <label data-locale="subfolderTabFontSize">Subfolder Tab Font</label>
+                </div>
+                <div class='column controls'>
+                    <select class="settingsCtl" id="subfolderTabFontSize" name="subfolderTabFontSize">
+                        <option value="xx-small" data-locale="optionXXSmall">XX-Small</option>
+                        <option value="x-small" data-locale="optionXSmall">X-Small</option>
+                        <option value="small" data-locale="optionSmall">Small</option>
+                        <option value="medium" data-locale="optionMedium">Medium</option>
+                        <option value="large" data-locale="optionLarge">Large</option>
+                        <option value="x-large" data-locale="optionXLarge">X-Large</option>
+                        <option value="xx-large" data-locale="optionXXLarge">XX-Large</option>
+                    </select>
+                </div>
+            </div>
+            <hr>
+
             <div class='row'>
                 <div class='column'>
                     <label data-locale="dialSize">Dial Size</label>
@@ -349,6 +379,17 @@
                         <option value="large" data-locale="optionLarge">Large</option>
                         <option value="x-large" data-locale="optionXLarge">X-Large</option>
                         <option value="xx-large" data-locale="optionXXLarge">XX-Large</option>
+                    </select>
+                </div>
+            </div>
+            <div class='row'>
+                <div class='column'>
+                    <label data-locale="dialRatio">Dial Ratio</label>
+                </div>
+                <div class='column controls'>
+                    <select class="settingsCtl" id="dialRatio" name="dialRatio">
+                        <option value="square" data-locale="optionSquare">Square</option>
+                        <option value="wide" data-locale="optionWide">Wide</option>
                     </select>
                 </div>
             </div>
@@ -368,39 +409,6 @@
                         <option value="4">4</option>
                         <option value="3">3</option>
                     </select>
-                </div>
-            </div>
-            <div class='row'>
-                <div class='column'>
-                    <label data-locale="defaultSort">Default Sort</label>
-                </div>
-                <div class='column controls'>
-                    <select class="settingsCtl" id="defaultSort" name="defaultSort">
-                        <option value="last" data-locale="optionNewDialsLast">New dials last</option>
-                        <option value="first" data-locale="optionNewDialsFirst">New dials first</option>
-                    </select>
-                </div>
-            </div>
-            <div class='row' style="display:none">
-                <div class='column'>
-                    <label data-locale="largeTiles">Large Tiles</label>
-                </div>
-                <div class='column controls'>
-                    <label class="switch">
-                        <input checked class="settingsCtl" id="largeTiles" type="checkbox">
-                        <span class="slider round settingsCtl"></span>
-                    </label>
-                </div>
-            </div>
-            <div class='row'>
-                <div class='column'>
-                    <label data-locale="remember">Remember Last Folder</label>
-                </div>
-                <div class='column controls'>
-                    <label class="switch">
-                        <input class="settingsCtl" id="rememberFolder" type="checkbox">
-                        <span class="slider round settingsCtl"></span>
-                    </label>
                 </div>
             </div>
             <div class='row'>
@@ -425,13 +433,31 @@
                     </label>
                 </div>
             </div>
+
+            </div><!-- .settings-column-left -->
+
+            <div class="settings-column-right">
+
+            <h3 data-locale="sectionFunction">Function</h3>
+
             <div class='row'>
                 <div class='column'>
-                    <label data-locale="addSiteButton">Add Site Button</label>
+                    <label data-locale="defaultSort">Default Sort</label>
+                </div>
+                <div class='column controls'>
+                    <select class="settingsCtl" id="defaultSort" name="defaultSort">
+                        <option value="last" data-locale="optionNewDialsLast">New dials last</option>
+                        <option value="first" data-locale="optionNewDialsFirst">New dials first</option>
+                    </select>
+                </div>
+            </div>
+            <div class='row'>
+                <div class='column'>
+                    <label data-locale="remember">Remember Last Folder</label>
                 </div>
                 <div class='column controls'>
                     <label class="switch">
-                        <input checked class="settingsCtl" id="showCreateDial" type="checkbox">
+                        <input class="settingsCtl" id="rememberFolder" type="checkbox">
                         <span class="slider round settingsCtl"></span>
                     </label>
                 </div>
@@ -449,11 +475,11 @@
             </div>
             <div class='row'>
                 <div class='column'>
-                    <label data-locale="settingsButton">Settings Button</label>
+                    <label data-locale="addSiteButton">Add Site Button</label>
                 </div>
                 <div class='column controls'>
                     <label class="switch">
-                        <input class="settingsCtl" id="showSettingsBtn" type="checkbox">
+                        <input checked class="settingsCtl" id="showCreateDial" type="checkbox">
                         <span class="slider round settingsCtl"></span>
                     </label>
                 </div>
@@ -469,6 +495,28 @@
                     </label>
                 </div>
             </div>
+            <div class='row'>
+                <div class='column'>
+                    <label data-locale="settingsButton">Settings Button</label>
+                </div>
+                <div class='column controls'>
+                    <label class="switch">
+                        <input class="settingsCtl" id="showSettingsBtn" type="checkbox">
+                        <span class="slider round settingsCtl"></span>
+                    </label>
+                </div>
+            </div>
+            <div class='row' style="display:none">
+                <div class='column'>
+                    <label data-locale="largeTiles">Large Tiles</label>
+                </div>
+                <div class='column controls'>
+                    <label class="switch">
+                        <input checked class="settingsCtl" id="largeTiles" type="checkbox">
+                        <span class="slider round settingsCtl"></span>
+                    </label>
+                </div>
+            </div>
 
             <hr>
             <div class='row'>
@@ -478,7 +526,7 @@
             </div>
             <div class='row'>
                 <div class='column'>
-                    <label id="resetSettingsBtn" data-locale="resetSettings" class="settingsCtl settingsLink">Reset Settings</label>
+                    <label id="resetSettingsBtn" data-locale="resetSettings" class="settingsCtl settingsLink settingsLinkDanger">Reset Settings</label>
                 </div>
             </div>
             <div class='row'>
@@ -486,6 +534,10 @@
                     <label id="help" data-locale="help" class="settingsCtl settingsLink" >Help</label>
                 </div>
             </div>
+
+            </div><!-- .settings-column-right -->
+            </div><!-- .settings-columns -->
+
         </div>
 
 

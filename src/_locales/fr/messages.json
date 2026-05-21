@@ -44,6 +44,12 @@
   "dialRatio": {
     "message": "Dial Format"
   },
+  "folderTabFontSize": {
+    "message": "Taille police onglet dossier"
+  },
+  "subfolderTabFontSize": {
+    "message": "Taille police sous-dossier"
+  },
   "dialSize": {
     "message": "Dial Size"
   },
@@ -177,6 +183,12 @@
   },
   "wallpaper": {
     "message": "Contexte Image"
+  },
+  "sectionDisplay": {
+    "message": "Paramètres d'affichage"
+  },
+  "sectionFunction": {
+    "message": "Paramètres de fonction"
   },
   "optionSquare": {
     "message": "Carré"

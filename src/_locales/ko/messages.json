@@ -44,7 +44,13 @@
     "dialRatio": {
       "message": "다이얼 형식"
     },
-    "dialSize": {
+    "folderTabFontSize": {
+    "message": "폴더 탭 글꼴 크기"
+  },
+  "subfolderTabFontSize": {
+    "message": "하위 폴더 탭 글꼴 크기"
+  },
+  "dialSize": {
       "message": "다이얼 크기"
     },
     "edit": {
@@ -178,7 +184,13 @@
     "wallpaper": {
       "message": "배경화면"
     },
-    "optionSquare": {
+    "sectionDisplay": {
+    "message": "디스플레이 설정"
+  },
+  "sectionFunction": {
+    "message": "기능 설정"
+  },
+  "optionSquare": {
       "message": "정사각형"
     },
     "optionWide": {

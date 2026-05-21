@@ -241,6 +241,7 @@ h1 {
 .folderTitle {
     opacity: 0.85;
     font-weight: bold;
+    font-size: var(--folder-tab-font-size, medium);
     transition: padding 160ms ease, margin 160ms ease, outline 160ms ease, background 160ms ease;
     padding: 4px 6px;
     margin: 8px 6px;
@@ -252,9 +253,9 @@ h1 {
 
 /* When a tile is dragged over the folders area, expand ALL folder titles uniformly */
 .folders-drag-active .folderTitle {
-    padding: var(--folder-drop-padding, 60px);
+    padding: var(--folder-drop-padding, 40px);
+    font-size: calc(var(--folder-tab-font-size, medium) * 1.5);
     margin: 0;
-
     border-radius: 12px;
 }
 
@@ -265,6 +266,10 @@ h1 {
 
 .activeFolder {
     opacity: 1;
+    color: #75FB4C;
+    border-bottom: 2px solid #75FB4C;
+    border-radius: 0;
+    padding-bottom: 2px;
 }
 
 #deleteFolderModalName {
@@ -293,7 +298,7 @@ h1 {
 .tile-content {
     width: 100%;
     height: var(--dial-content-height);
-    border-color: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.3);
     border-radius: inherit;
     background-origin: content-box;
     background-position: 50%;
@@ -687,19 +692,20 @@ input:focus + .inputBorder, .expand:focus .inputBorder {
 
 .sidenav {
     height: 100%; /* 100% Full-height */
-    width: 320px; /* 0 width - change this with JavaScript */
+    width: 680px; /* 0 width - change this with JavaScript */
     position: fixed; /* Stay in place */
     transform: translateX(100%);
     z-index: 3; /* Stay on top */
     top: 0; /* Stay at the top */
     right: 0;
-    background: rgba(0,0,0,1);
+    background: rgba(0,0,0,0.8);
     box-shadow: none;
     overflow-x: hidden; /* Disable horizontal scroll */
     transition: 360ms; /* 0.5 second transition effect to slide in the sidenav */
     color: white;
     display: none;
     justify-content: center;
+    box-sizing: border-box;
 }
 
 #foldersContainer {
@@ -964,7 +970,7 @@ body:not(:has(.folderTitle)) #tileContainer {
 .subfolder-tab {
     opacity: 0.7;
     font-weight: bold;
-    font-size: medium;
+    font-size: var(--subfolder-tab-font-size, medium);
     margin: 8px 12px;
     cursor: default;
     transition: opacity 160ms ease, padding 160ms ease;
@@ -977,6 +983,11 @@ body:not(:has(.folderTitle)) #tileContainer {
 .subfolder-tab.active {
     opacity: 1;
     color: #75FB4C;
+}
+
+.subfolders-drag-active .subfolder-tab {
+    padding: var(--subfolder-drop-padding, 24px);
+    font-size: calc(var(--subfolder-tab-font-size, medium) * 1.5);
 }
 
 .subfolders-drag-active .subfolder-tab.drag-hover {
