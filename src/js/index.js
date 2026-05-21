@@ -22,6 +22,9 @@ const bookmarksContainerParent = document.getElementById('tileContainer');
 const bookmarksContainer = bookmarksContainerParent
 const foldersContainer = document.getElementById('folders');
 const addFolderButton = document.getElementById('addFolderButton');
+const subfoldersContainer = document.getElementById('subfoldersContainer');
+const subfoldersContent = document.getElementById('subfolders');
+const addSubFolderButton = document.getElementById('addSubFolderButton');
 const menu = document.getElementById('contextMenu');
 const folderMenu = document.getElementById('folderMenu');
 const settingsMenu = document.getElementById('settingsMenu');
@@ -135,6 +138,9 @@ let targetFolderName = null;
 let targetFolderLink = null;
 let folders = [];
 let currentFolder = null;
+let currentSubFolder = null;  // 当前第二层选中的子文件夹ID，null表示显示父文件夹书签
+let currentSubFolderParent = null;  // 当前第二层所属的第一层文件夹ID
+let isDragging = false;  // 是否正在拖拽书签
 let scrollPos = 0;
 let homeFolderTitle = chrome.i18n.getMessage('home');
 let windowSize = null;
@@ -262,6 +268,21 @@ async function buildDialPages(speedDialId, currentFolderId) {
     const currentChildren = await getChildren(currentFolderId);
     await printBookmarks(currentChildren, currentFolderId);
 
+    // 确定二级菜单应基于哪个父文件夹
+    // 如果当前在查看子文件夹内容（currentSubFolder !== null），
+    // 二级菜单应显示该子文件夹所属的父文件夹的子文件夹列表，而非子文件夹自身的内容
+    let subfolderParentId = currentFolderId;
+    if (currentFolderId !== speedDialId && currentSubFolder !== null && currentSubFolderParent !== null) {
+        subfolderParentId = currentSubFolderParent;
+    }
+
+    // 主页时隐藏二级菜单容器
+    if (currentFolderId === speedDialId) {
+        subfoldersContainer.style.display = 'none';
+    } else {
+        subfoldersContainer.style.display = 'flex';
+        buildSubfolderTabs(subfolderParentId);
+    }
 
     // Process the rest of the folders, if there are more. exclude the current folder
     if (folders.length > 1) {
@@ -359,14 +380,6 @@ function moveFolder(id, oldIndex, newIndex, newSiblingId) {
 function moveBookmark(id, fromParentId, toParentId, oldIndex, newIndex, newSiblingId) {
     let options = {}
 
-    function move(id, options) {
-        chrome.bookmarks.move(id, options).then(result => {
-            //tabMessagePort.postMessage({ refreshInactive: true });
-        }).catch(err => {
-            console.log(err);
-        });
-    }
-
     if ((toParentId && fromParentId) && toParentId !== fromParentId) {
         options.parentId = toParentId;
     }
@@ -374,7 +387,7 @@ function moveBookmark(id, fromParentId, toParentId, oldIndex, newIndex, newSibli
     // todo: refactor
     if (settings.defaultSort === "first") {
         if (newSiblingId && newSiblingId !== -1) {
-            chrome.bookmarks.get(newSiblingId).then(result => {
+            return chrome.bookmarks.get(newSiblingId).then(result => {
                 if (toParentId === fromParentId && oldIndex >= newIndex) {
                     options.index = Math.max(0, result[0].index);
                     // chrome-only off by 1 bug when moving a bookmark forward
@@ -384,7 +397,7 @@ function moveBookmark(id, fromParentId, toParentId, oldIndex, newIndex, newSibli
                 } else {
                     options.index = Math.max(0, result[0].index + 1);
                 }
-                move(id, options);
+                return chrome.bookmarks.move(id, options);
             }).catch(err => {
                 console.log(err);
             })
@@ -392,11 +405,13 @@ function moveBookmark(id, fromParentId, toParentId, oldIndex, newIndex, newSibli
             if (!newSiblingId) {
                 options.index = 0;
             }
-            move(id, options);
+            return chrome.bookmarks.move(id, options).catch(err => {
+                console.log(err);
+            });
         }
     } else {
         if (newSiblingId && newSiblingId !== -1) {
-            chrome.bookmarks.get(newSiblingId).then(result => {
+            return chrome.bookmarks.get(newSiblingId).then(result => {
                 if (toParentId !== fromParentId || oldIndex >= newIndex) {
                     options.index = Math.max(0, result[0].index);
                 } else {
@@ -406,12 +421,14 @@ function moveBookmark(id, fromParentId, toParentId, oldIndex, newIndex, newSibli
                         options.index++;
                     }
                 }
-                move(id, options);
+                return chrome.bookmarks.move(id, options);
             }).catch(err => {
                 console.log(err);
             })
         } else {
-            move(id, options);
+            return chrome.bookmarks.move(id, options).catch(err => {
+                console.log(err);
+            });
         }
     }
 }
@@ -443,6 +460,74 @@ function showFolder(id) {
             title.classList.remove('activeFolder');
         }
     }
+
+    // 构建第二层标签
+    if (speedDialId) {
+        // speedDialId 已初始化
+        if (id === speedDialId) {
+            // 主页，隐藏整个二级菜单容器
+            subfoldersContainer.style.display = 'none';
+            subfoldersContent.innerHTML = '';
+            currentSubFolder = null;
+            currentSubFolderParent = null;
+        } else {
+            // 非主页，显示二级菜单
+            subfoldersContainer.style.display = 'flex';
+            buildSubfolderTabs(id);
+        }
+    } else {
+        // speedDialId 未初始化，隐藏整个二级菜单容器
+        subfoldersContainer.style.display = 'none';
+    }
+}
+
+// 二级菜单拖拽事件处理
+function subfolderContainerDragEnter(ev) {
+    ev.preventDefault();
+    subfoldersContainer.classList.add('subfolders-drag-active');
+}
+
+function subfolderContainerDragLeave(ev) {
+    if (subfoldersContainer.contains(ev.relatedTarget)) return;
+    subfoldersContainer.classList.remove('subfolders-drag-active');
+    document.querySelectorAll('.subfolder-tab.drag-hover').forEach(el => el.classList.remove('drag-hover'));
+}
+
+function subfolderContainerDragOver(ev) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = "move";
+}
+
+// 二级菜单标签拖拽进入处理
+function subfolderDragenterHandler(ev) {
+    ev.preventDefault();
+    const el = ev.currentTarget;
+    if (!el.classList.contains("subfolder-tab")) return;
+
+    // 视觉高亮
+    document.querySelectorAll('.subfolder-tab.drag-hover').forEach(t => t.classList.remove('drag-hover'));
+    el.classList.add("drag-hover");
+
+    // 导航到对应文件夹内容（用 switchSubfolder 而非 showFolder，不重建二级标签行）
+    const folderId = el.getAttribute("subfolderid");
+    const isBookmarkTab = el.getAttribute('is-bookmark-tab') === 'true';
+    clearTimeout(folderNavTimeout);
+    if (currentFolder !== folderId) {
+        folderNavTimeout = setTimeout(() => {
+            switchSubfolder(folderId, isBookmarkTab);
+            scrollPos = 0;
+            bookmarksContainerParent.scrollTop = scrollPos;
+        }, 350);
+    }
+}
+
+function subfolderDragleaveHandler(ev) {
+    const el = ev.currentTarget;
+    if (el.contains(ev.relatedTarget)) return;
+    el.classList.remove("drag-hover");
+    if (!subfoldersContent.querySelector('.subfolder-tab.drag-hover')) {
+        clearTimeout(folderNavTimeout);
+    }
 }
 
 function getThumbs(bookmarkUrl) {
@@ -452,6 +537,229 @@ function getThumbs(bookmarkUrl) {
                 return result[bookmarkUrl];
             }
         });
+}
+
+let buildSubfolderTabsToken = 0;
+
+async function buildSubfolderTabs(parentFolderId) {
+    // 防止并发调用导致 Sortable 实例冲突
+    const token = ++buildSubfolderTabsToken;
+
+    // 记录当前第二层所属的第一层文件夹
+    currentSubFolderParent = parentFolderId;
+
+    // 获取父文件夹的子文件夹
+    const children = await chrome.bookmarks.getChildren(parentFolderId);
+    if (token !== buildSubfolderTabsToken) return;
+    const subfolders = children.filter(child => !child.url && child.parentId === parentFolderId);
+
+    // 按 index 排序
+    subfolders.sort((a, b) => (a.index || 0) - (b.index || 0));
+
+    // 清空第二层容器
+    subfoldersContent.innerHTML = '';
+
+    // 获取父文件夹标题（用于"书签"标签）
+    let parentTitle = homeFolderTitle;
+    if (parentFolderId !== speedDialId) {
+        const parentNode = await chrome.bookmarks.get(parentFolderId);
+        if (token !== buildSubfolderTabsToken) return;
+        if (parentNode && parentNode.length > 0) {
+            parentTitle = parentNode[0].title;
+        }
+    }
+
+    // 创建第一个"书签"标签（高亮）
+    const bookmarkTab = document.createElement('a');
+    bookmarkTab.classList.add('subfolder-tab', 'active');
+    bookmarkTab.setAttribute('subfolderId', parentFolderId);
+    bookmarkTab.setAttribute('is-bookmark-tab', 'true');
+    const bookmarkLabel = chrome.i18n.getMessage('bookmarks') || '书签';
+    bookmarkTab.textContent = parentTitle + ' ' + bookmarkLabel;
+    bookmarkTab.onclick = function () {
+        switchSubfolder(parentFolderId, true);
+    };
+    bookmarkTab.ondragenter = subfolderDragenterHandler;
+    bookmarkTab.ondragleave = subfolderDragleaveHandler;
+    subfoldersContent.appendChild(bookmarkTab);
+
+    // 创建子文件夹标签
+    for (let subfolder of subfolders) {
+        const tab = document.createElement('a');
+        tab.classList.add('subfolder-tab');
+        tab.setAttribute('subfolderId', subfolder.id);
+        tab.textContent = subfolder.title;
+        tab.onclick = function () {
+            switchSubfolder(subfolder.id, false);
+        };
+        tab.ondragenter = subfolderDragenterHandler;
+        tab.ondragleave = subfolderDragleaveHandler;
+        subfoldersContent.appendChild(tab);
+    }
+
+    // 添加 [+ ] 新增子文件夹按钮
+    addSubFolderButton.onclick = function () {
+        createSubFolder(parentFolderId);
+    };
+
+    // 根据当前状态决定哪个标签高亮
+    // 如果正在查看此父文件夹的某个子文件夹，激活对应标签；否则激活"书签"标签
+    if (currentSubFolder !== null && currentSubFolderParent === parentFolderId) {
+        bookmarkTab.classList.remove('active');
+        const tabs = subfoldersContent.getElementsByClassName('subfolder-tab');
+        for (let tab of tabs) {
+            if (tab.getAttribute('subfolderId') === currentSubFolder) {
+                tab.classList.add('active');
+                break;
+            }
+        }
+    } else {
+        currentSubFolder = null;
+    }
+
+    // 为第二层添加拖拽排序支持（仅用于子文件夹标签排序）
+    // 注意：不使用 group: 'shared'，因为二级菜单不接受书签拖拽
+    // 书签拖拽到子文件夹是通过 onEndHandler 中的 droppedOnSubfolderId 检测处理的
+    // 拖拽进行中不重建 Sortable，避免破坏书签拖拽事件
+    if (!isDragging) {
+        let existingSortable = Sortable.get(subfoldersContent);
+        if (existingSortable) {
+            existingSortable.destroy();
+        }
+
+        new Sortable(subfoldersContent, {
+            animation: 150,
+            forceFallback: true,
+            fallbackTolerance: 4,
+            filter: '#addSubFolderButton',
+            ghostClass: 'selected',
+            onMove: function (evt) {
+                // 不允许拖拽到"书签"标签和 [+ ] 按钮上
+                if (evt.related.id === 'addSubFolderButton') return false;
+                if (evt.related.getAttribute && evt.related.getAttribute('is-bookmark-tab') === 'true') return false;
+                return true;
+            },
+            onEnd: async function (evt) {
+                // 只处理子文件夹标签的拖拽排序，其他元素（书签等）由主 onEndHandler 处理
+                // 不能用 evt.clone.href 判断，因为 evt.clone 在跨 Sortable 拖拽时可能为 undefined
+                if (!evt.item || !evt.item.getAttribute('subfolderId')) {
+                    return;
+                }
+
+                // 处理子文件夹拖拽排序（只有从 subfoldersContent 内部拖拽才处理）
+                if (evt.from === subfoldersContent && evt.to === subfoldersContent) {
+                    let fromId = evt.item.getAttribute('subfolderId');
+
+                    // 跳过"书签"标签和 [+ ] 按钮
+                    if (!fromId || evt.item.getAttribute('is-bookmark-tab') === 'true') {
+                        // 还原位置
+                        buildSubfolderTabs(currentSubFolderParent);
+                        return;
+                    }
+
+                    let oldIndex = evt.oldIndex;
+                    let newIndex = evt.newIndex;
+                    let parentId = currentSubFolderParent;
+
+                    // 计算实际索引（跳过第一个"书签"标签）
+                    let actualOldIndex = oldIndex - 1;
+                    let actualNewIndex = newIndex - 1;
+
+                    // 如果位置没变，不做任何事
+                    if (actualOldIndex === actualNewIndex) {
+                        return;
+                    }
+
+                    // 从右往左拖动时 actualNewIndex 需要补偿
+                    // （Sortable 的 newIndex 是相对于原始位置计算的）
+                    if (actualOldIndex < actualNewIndex) {
+                        actualNewIndex++;
+                    }
+
+                    chrome.bookmarks.move(fromId, {
+                        index: Math.max(0, actualNewIndex)
+                    }).then(() => {
+                        buildSubfolderTabs(parentId);
+                    }).catch(err => {
+                        console.log(err);
+                        buildSubfolderTabs(parentId);
+                    });
+                }
+                // 从其他容器拖入的情况不需要处理，Sortable 会自动处理移动
+            }
+        });
+    }
+
+    // 预创建/刷新子文件夹的容器、内容和 Sortable 实例
+    // 这样拖拽书签悬停导航到子文件夹时，目标 Sortable 已存在，可以接受放置
+    // printBookmarks 已根据 currentFolder 正确处理 display，不要覆盖
+    // 拖拽进行中跳过——printBookmarks 会触发 Sortable 销毁，破坏拖拽源
+    if (!isDragging) {
+        for (let subfolder of subfolders) {
+            const children = await chrome.bookmarks.getChildren(subfolder.id);
+            if (token !== buildSubfolderTabsToken) return;
+            await printBookmarks(children, subfolder.id);
+            if (token !== buildSubfolderTabsToken) return;
+        }
+    }
+}
+
+async function switchSubfolder(subfolderId, isBookmarkTab) {
+    // 隐藏所有容器，只显示目标子文件夹的容器
+    let allContainers = document.getElementsByClassName('container');
+    for (let container of allContainers) {
+        if (container.id === subfolderId) {
+            container.style.display = 'flex';
+            container.style.opacity = '0';
+            setTimeout(() => {
+                container.style.opacity = '1';
+                animate();
+            }, 20);
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    // 高亮对应标签
+    const tabs = document.getElementsByClassName('subfolder-tab');
+    for (let tab of tabs) {
+        if (tab.getAttribute('subfolderId') === subfolderId) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    }
+
+    // 更新状态
+    if (isBookmarkTab) {
+        currentSubFolder = null;
+        currentFolder = subfolderId;
+    } else {
+        currentSubFolder = subfolderId;
+        currentFolder = subfolderId;
+    }
+
+    // 如果容器已有预加载内容（buildSubfolderTabs 预创建的），不重建 Sortable
+    // 否则拖拽中的 SortableJS 不会识别新实例，导致无法放置
+    const container = document.getElementById(subfolderId);
+    if (container && container.querySelector('.tile')) {
+        return;
+    }
+
+    const children = await chrome.bookmarks.getChildren(subfolderId);
+    await printBookmarks(children, subfolderId);
+}
+
+function createSubFolder(parentId) {
+    hideSettings();
+    createFolderModalName.value = '';
+    createFolderModalName.focus();
+    createFolderModal.style.transform = "translateX(0%)";
+    createFolderModal.style.opacity = "1";
+    createFolderModalContent.style.transform = "scale(1)";
+    createFolderModalContent.style.opacity = "1";
+    // 临时存储父文件夹ID
+    createFolderModal.dataset.parentId = parentId;
 }
 
 function printFolderBookmarks() {
@@ -500,13 +808,18 @@ function createFolder() {
 
 function saveFolder() {
     let name = createFolderModalName.value.trim();
+    let parentId = createFolderModal.dataset.parentId || speedDialId;
 
     if (name.length) {
         chrome.bookmarks.create({
             title: name,
-            parentId: speedDialId
+            parentId: parentId
         }).then(node => {
             hideModals();
+            // 刷新第二层（如果在子文件夹视图中）
+            if (parentId === currentSubFolderParent) {
+                buildSubfolderTabs(parentId);
+            }
         });
     } else {
         hideModals();
@@ -547,8 +860,10 @@ function removeFolder() {
             // todo: better manager this state
         }
 
-        if (currentFolder === targetFolder) {
-            currentFolder = speedDialId;;
+        if (currentFolder === targetFolder || currentSubFolderParent === targetFolder) {
+            currentFolder = speedDialId;
+            currentSubFolder = null;
+            currentSubFolderParent = null;
             bookmarksContainerParent.scrollTop = scrollPos;
             showFolder(speedDialId);
             settings.currentFolder = speedDialId;
@@ -756,38 +1071,42 @@ async function printBookmarks(bookmarks, parentId) {
         folderContainerEl = document.createElement('div');
         folderContainerEl.id = parentId;
         folderContainerEl.classList.add('container');
-        folderContainerEl.style.display = currentFolder === parentId ? 'flex' : 'none';
-        //folderContainerEl.style.opacity = settings.rememberFolder && currentFolder === parentId ? '0' : '1';
-        folderContainerEl.style.opacity = "0";
-
-        if (currentFolder === parentId) {
-            setTimeout(() => {
-                folderContainerEl.style.opacity = "1";
-                animate();
-            }, 20);
-            document.querySelector(`[folderid="${currentFolder}"]`)?.classList.add('activeFolder');
-        }
         bookmarksContainerParent.append(folderContainerEl);
     }
 
+    // Always update visibility — container may have been hidden/shown by switchSubfolder
+    folderContainerEl.style.display = currentFolder === parentId ? 'flex' : 'none';
+    folderContainerEl.style.opacity = currentFolder === parentId ? '0' : '';
+
+    if (currentFolder === parentId) {
+        setTimeout(() => {
+            folderContainerEl.style.opacity = "1";
+            animate();
+        }, 20);
+        document.querySelector(`[folderid="${currentFolder}"]`)?.classList.add('activeFolder');
+    }
+
     // Destroy any previous Sortable instance to avoid duplicate event handlers after refresh
+    // 拖拽进行中不销毁 Sortable，否则会破坏正在进行的拖拽操作
     let existingSortable = Sortable.get(folderContainerEl);
-    if (existingSortable) {
+    if (existingSortable && !isDragging) {
         existingSortable.destroy();
     }
 
-    // Sortable configuration
-    new Sortable(folderContainerEl, {
-        group: 'shared',
-        animation: 160,
-        ghostClass: 'selected',
-        dragClass: 'dragging',
-        filter: ".createDial",
-        delay: 500,
-        delayOnTouchOnly: true,
-        onMove: onMoveHandler,
-        onEnd: onEndHandler
-    });
+    // 拖拽进行中不创建新 Sortable（旧实例保留，避免破坏拖拽源）
+    if (!isDragging || !existingSortable) {
+        new Sortable(folderContainerEl, {
+            group: 'shared',
+            animation: 160,
+            ghostClass: 'selected',
+            dragClass: 'dragging',
+            filter: ".createDial",
+            delay: 500,
+            delayOnTouchOnly: true,
+            onMove: onMoveHandler,
+            onEnd: onEndHandler
+        });
+    }
 
     // Sorting optimization (this is done now?)
     /*
@@ -797,8 +1116,11 @@ async function printBookmarks(bookmarks, parentId) {
         */
 
     // Optimize container update using batch insert
-    folderContainerEl.textContent = ''; // todo: is this even required here? would innerHTML = '' be preferable?
-    batchInsert(folderContainerEl, fragment)
+    // 拖拽进行中不更新 DOM 内容，避免破坏 Sortable 的拖拽元素引用
+    if (!isDragging) {
+        folderContainerEl.textContent = ''; // todo: is this even required here? would innerHTML = '' be preferable?
+        batchInsert(folderContainerEl, fragment)
+    }
 
     bookmarksContainerParent.scrollTop = scrollPos;
 }
@@ -2764,6 +3086,7 @@ function dragleaveHandler(ev) {
 
 // Sortable helper fns
 function onMoveHandler(evt) {
+    isDragging = true;
     if (evt.related) {
         if (evt.to.children.length > 1) {
             // when no bookmarks are present we keep the createdial enabled so we have a drop target for dials dragged into folder
@@ -2787,9 +3110,17 @@ function dewrap(str) {
 }
 
 function onEndHandler(evt) {
+    // 重置拖拽状态
+    isDragging = false;
+
     // clean up folder drag-hover state
     document.getElementById('foldersContainer').classList.remove('folders-drag-active');
     document.querySelectorAll('.folderTitle.drag-hover').forEach(el => el.classList.remove('drag-hover'));
+    document.querySelectorAll('.subfolder-tab.drag-hover').forEach(el => el.classList.remove('drag-hover'));
+    subfoldersContainer.classList.remove('subfolders-drag-active');
+
+    // 清除拖拽导航定时器，防止拖拽后触发导航
+    clearTimeout(folderNavTimeout);
 
     if (evt && evt.clone.href) {
         let id = evt.clone.dataset.id;
@@ -2801,22 +3132,44 @@ function onEndHandler(evt) {
         let newIndex = evt.newIndex;
 
         // check if dropped directly onto a folder title (may happen before the 350ms nav timeout fires)
-        let dropTarget = evt.originalEvent.target;
-        let folderTitleEl = dropTarget.closest ? dropTarget.closest('.folderTitle') : null;
+        let dropTarget = evt.originalEvent ? evt.originalEvent.target : null;
+        let folderTitleEl = dropTarget && dropTarget.closest ? dropTarget.closest('.folderTitle') : null;
         let droppedOnFolderId = folderTitleEl ? folderTitleEl.getAttribute('folderid') : null;
 
+        // check if dropped onto a subfolder tab (包括"书签"标签，其 subfolderId 即父文件夹ID)
+        let subfolderTabEl = dropTarget && dropTarget.closest ? dropTarget.closest('.subfolder-tab') : null;
+        let droppedOnSubfolderId = subfolderTabEl ? subfolderTabEl.getAttribute('subfolderid') : null;
+
+        // 如果拖到二级菜单区域但没有精确命中子文件夹标签，使用 currentSubFolderParent
+        // 注意：需要检查 evt.to 是否真的是 subfoldersContent（不是子文件夹容器）
+        if (!droppedOnSubfolderId && evt.to.id === 'subfolders' && evt.to.classList.contains('subfolders-content')) {
+            // 拖到了二级菜单内容区域但没有命中具体标签，使用父文件夹
+            // 不要使用 currentSubFolderParent，因为书签应该移动到 currentFolder 的子文件夹
+            toParentId = currentSubFolderParent || currentFolder || speedDialId;
+        }
+
+        // 如果拖到一级菜单文件夹标签上
+        if (droppedOnFolderId) {
+            toParentId = droppedOnFolderId;
+        }
+
+        // 如果拖到二级菜单的子文件夹标签上
+        if (droppedOnSubfolderId) {
+            toParentId = droppedOnSubfolderId;
+        }
+
         // todo: test if this is needed
-        if (fromParentId !== toParentId && toParentId !== evt.originalEvent.target.id) {
+        if (fromParentId !== toParentId && toParentId !== evt.originalEvent?.target?.id) {
             // sortable's position doesn't match the dom's drop target
             // this may happen if the tile is dragged over a sortable list but then ultimately dropped somewhere else
             // for example directly on the folder name, or directly onto the new dial button. so use the folder target if available or else currentFolder
-            toParentId = droppedOnFolderId || currentFolder || speedDialId;
+            toParentId = droppedOnFolderId || droppedOnSubfolderId || currentFolder || speedDialId;
         }
 
         if (fromParentId === toParentId && fromParentId !== currentFolder) {
             // occurs when there is no sortable target -- for example dropping the dial onto the folder name
             // or some space of the page outside the sortable container element
-            toParentId = droppedOnFolderId || currentFolder || speedDialId;
+            toParentId = droppedOnFolderId || droppedOnSubfolderId || currentFolder || speedDialId;
         }
 
         // if the sibling's parent doesnt match the parent we are moving to discard this sibling
@@ -2826,7 +3179,7 @@ function onEndHandler(evt) {
         }
 
         if ((fromParentId && toParentId && fromParentId !== toParentId) || oldIndex !== newIndex) {
-            moveBookmark(id, fromParentId, toParentId, oldIndex, newIndex, newSiblingId)
+            moveBookmark(id, fromParentId, toParentId, oldIndex, newIndex, newSiblingId);
         }
     } else if (evt && evt.clone.classList.contains('folderTitle')) {
         let oldIndex = evt.oldIndex;
@@ -3087,6 +3440,22 @@ function init() {
     foldersContainerEl.addEventListener('dragenter', folderContainerDragEnter);
     foldersContainerEl.addEventListener('dragleave', folderContainerDragLeave);
     foldersContainerEl.addEventListener('dragover', folderContainerDragOver);
+
+    // 拖拽安全重置 — dragend 在拖拽结束/取消时都会触发
+    document.addEventListener('dragend', function () {
+        isDragging = false;
+    });
+
+    // 书签内容区域拖拽事件 — 确保浏览器允许在此区域放置
+    bookmarksContainerParent.addEventListener('dragover', function (ev) {
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+    });
+
+    // 二级菜单容器拖拽事件
+    subfoldersContainer.addEventListener('dragenter', subfolderContainerDragEnter);
+    subfoldersContainer.addEventListener('dragleave', subfolderContainerDragLeave);
+    subfoldersContainer.addEventListener('dragover', subfolderContainerDragOver);
 
     new Sortable(foldersContainer, {
         animation: 150,
