@@ -144,6 +144,7 @@ let currentFolder = null;
 let currentSubFolder = null;  // 当前第二层选中的子文件夹ID，null表示显示父文件夹书签
 let currentSubFolderParent = null;  // 当前第二层所属的第一层文件夹ID
 let isDragging = false;  // 是否正在拖拽书签
+let refreshAllMode = 'thumbs';  // 'thumbs' 或 'titles'，刷新所有弹窗模式
 let scrollPos = 0;
 let homeFolderTitle = chrome.i18n.getMessage('home');
 let windowSize = null;
@@ -867,6 +868,56 @@ function refreshThumbnails(url, tileid) {
     }, 200);
 }
 
+function refreshSingleTitle(url, tileid) {
+    let parentId = tileid.split("-")[0];
+    let id = tileid.split("-")[1];
+    showToast(' Fetching title...');
+    chrome.runtime.sendMessage({ target: 'background', type: 'refreshTitle', data: { url, id, parentId } });
+}
+
+function refreshAllTitles() {
+    let bookmarks = [];
+    let parent = currentFolder ? currentFolder : speedDialId;
+    hideModals();
+    chrome.bookmarks.getChildren(parent).then(children => {
+        if (children && children.length) {
+            for (let child of children) {
+                if (child.url && (child.url.startsWith('https://') || child.url.startsWith('http://') || child.url.startsWith('file://') || child.url.startsWith('chrome://'))) {
+                    bookmarks.push({ url: child.url, id: child.id, parentId: child.parentId });
+                }
+            }
+            if (bookmarks.length) {
+                showToast(' Fetching titles...');
+                chrome.runtime.sendMessage({ target: 'background', type: 'refreshAllTitles', data: { bookmarks } });
+            }
+        }
+    });
+}
+
+function refreshMissingTitles() {
+    let bookmarks = [];
+    let parent = currentFolder ? currentFolder : speedDialId;
+    hideModals();
+    chrome.bookmarks.getChildren(parent).then(children => {
+        if (children && children.length) {
+            for (let child of children) {
+                if (child.url && (child.url.startsWith('https://') || child.url.startsWith('http://') || child.url.startsWith('file://') || child.url.startsWith('chrome://'))) {
+                    // 只处理标题缺失或标题与 URL 相同的
+                    if (!child.title || child.title === child.url) {
+                        bookmarks.push({ url: child.url, id: child.id, parentId: child.parentId });
+                    }
+                }
+            }
+            if (bookmarks.length) {
+                showToast(' Fetching ' + bookmarks.length + ' titles...');
+                chrome.runtime.sendMessage({ target: 'background', type: 'refreshAllTitles', data: { bookmarks } });
+            } else {
+                showToast(' All titles are already set.');
+            }
+        }
+    });
+}
+
 function removeFolder() {
     const isSubfolder = folders.indexOf(targetFolder) === -1;
 
@@ -913,6 +964,19 @@ function getChildren(folderId) {
     });
 }
 
+function updateRefreshAllModal() {
+    var h3 = document.querySelector('#refreshAllModalContent h3');
+    var p = document.querySelector('#refreshAllModalContent p');
+    if (!h3 || !p) return;
+    if (refreshAllMode === 'titles') {
+        h3.textContent = chrome.i18n.getMessage('refreshAllTitlesTitle') || 'Refresh All Titles?';
+        p.textContent = chrome.i18n.getMessage('refreshAllTitlesDesc') || 'This will fetch page titles to update bookmark names. Only the current folder will be processed.';
+    } else {
+        h3.textContent = chrome.i18n.getMessage('refreshAllTitle') || 'Refresh All Thumbnails?';
+        p.textContent = chrome.i18n.getMessage('refreshAllDesc') || 'This will fetch new images for all the dials on this page. It may take a while! Screenshots are not taken in this mode.';
+    }
+}
+
 function refreshAllThumbnails() {
     let bookmarks = [];
     let parent = currentFolder ? currentFolder : speedDialId;
@@ -935,6 +999,41 @@ function refreshAllThumbnails() {
                 chrome.runtime.sendMessage({ target: 'background', type: 'refreshAllThumbs', data: { bookmarks } });
             }, 200);
         }
+    }).catch(err => {
+        console.log(err);
+    });
+}
+
+function refreshMissingThumbnails() {
+    let parent = currentFolder ? currentFolder : speedDialId;
+    hideModals();
+
+    chrome.bookmarks.getChildren(parent).then(children => {
+        if (!children || !children.length) return;
+        let urls = children
+            .filter(c => c.url && (c.url.startsWith('https://') || c.url.startsWith('http://') || c.url.startsWith('file://') || c.url.startsWith('chrome://')))
+            .map(c => c.url);
+        if (!urls.length) return;
+
+        chrome.storage.local.get(urls).then(stored => {
+            let bookmarks = [];
+            for (let child of children) {
+                if (!child.url) continue;
+                if (!(child.url.startsWith('https://') || child.url.startsWith('http://') || child.url.startsWith('file://') || child.url.startsWith('chrome://'))) continue;
+                // 只处理还没有缩略图的
+                if (!stored[child.url]) {
+                    bookmarks.push({ url: child.url, id: child.id, parentId: child.parentId });
+                }
+            }
+            if (bookmarks.length) {
+                showToast(' Capturing images for ' + bookmarks.length + ' missing...');
+                setTimeout(() => {
+                    chrome.runtime.sendMessage({ target: 'background', type: 'refreshAllThumbs', data: { bookmarks } });
+                }, 200);
+            } else {
+                showToast(' All thumbnails already exist.');
+            }
+        });
     }).catch(err => {
         console.log(err);
     });
@@ -1239,12 +1338,12 @@ function hideToast() {
 }
 
 function showToast(message) {
-    if (!isToastVisible) {
-        toastContent.innerText = message;
-        toast.classList.add('visible');
-        toast.style.transform = "translateX(0%)";
-        isToastVisible = true;
-    }
+    toastContent.innerText = message;
+    toast.classList.add('visible');
+    toast.style.transform = "translateX(0%)";
+    isToastVisible = true;
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(hideToast, 3000);
 }
 
 function buildCreateDialModal(parentId) {
@@ -2352,7 +2451,17 @@ window.addEventListener("mousedown", e => {
                 case 'refresh':
                     refreshThumbnails(targetTileHref, targetTileId);
                     break;
+                case 'refreshTitle':
+                    refreshSingleTitle(targetTileHref, targetTileId);
+                    break;
                 case 'refreshAll':
+                    refreshAllMode = 'thumbs';
+                    updateRefreshAllModal();
+                    modalShowEffect(refreshAllModalContent, refreshAllModal);
+                    break;
+                case 'refreshAllTitles':
+                    refreshAllMode = 'titles';
+                    updateRefreshAllModal();
                     modalShowEffect(refreshAllModalContent, refreshAllModal);
                     break;
                 case 'delete':
@@ -2408,7 +2517,22 @@ addFolderButton.addEventListener("click", createFolder);
 createFolderModalSave.addEventListener("click", saveFolder)
 editFolderModalSave.addEventListener("click", editFolder)
 deleteFolderModalSave.addEventListener("click", removeFolder);
-refreshAllModalSave.addEventListener("click", refreshAllThumbnails);
+refreshAllModalSave.addEventListener("click", function () {
+    if (refreshAllMode === 'titles') {
+        refreshAllTitles();
+    } else {
+        refreshAllThumbnails();
+    }
+});
+
+const refreshMissingModalSave = document.getElementById('refreshMissingModalSave');
+refreshMissingModalSave.addEventListener("click", function () {
+    if (refreshAllMode === 'titles') {
+        refreshMissingTitles();
+    } else {
+        refreshMissingThumbnails();
+    }
+});
 searchBtn.addEventListener("click", function() {
     activateExpandableSearch();
 });

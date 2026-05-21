@@ -223,6 +223,33 @@
   "optionNewDialsLast": {
     "message": "Nowe na końcu"
   },
+  "refreshTitle": {
+    "message": "Refresh Title"
+  },
+  "refreshAllThumbnails": {
+    "message": "Refresh All Thumbnails..."
+  },
+  "refreshAllTitles": {
+    "message": "Refresh All Titles..."
+  },
+  "refreshAllTitle": {
+    "message": "Refresh All Thumbnails?"
+  },
+  "refreshAllDesc": {
+    "message": "This will fetch new images for all the dials on this page. It may take a while! Screenshots are not taken in this mode."
+  },
+  "refreshAllBtn": {
+    "message": "All"
+  },
+  "refreshMissingBtn": {
+    "message": "Only Missing"
+  },
+  "refreshAllTitlesTitle": {
+    "message": "Refresh All Titles?"
+  },
+  "refreshAllTitlesDesc": {
+    "message": "This will fetch page titles to update bookmark names. Only the current folder will be processed."
+  },
   "optionNewDialsFirst": {
     "message": "Nowe na początku"
   }

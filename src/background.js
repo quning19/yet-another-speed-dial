@@ -44,7 +44,13 @@ async function handleMessages(message) {
 		case 'saveThumbnails':
 			handleOffscreenFetchDone(message.data, message.forcePageReload);
 			break;
-		case 'toggleBookmarkCreatedListener':
+		case 'refreshTitle':
+				handleRefreshTitle(message.data);
+				break;
+			case 'refreshAllTitles':
+				handleRefreshAllTitles(message.data);
+				break;
+			case 'toggleBookmarkCreatedListener':
 			toggleBookmarkCreatedListener(message.data);
 			break;
 		case 'getThumbs':
@@ -294,28 +300,25 @@ const capturePopupScreenshot = (url) => {
 
 async function handleRefreshAll(data) {
     async function refreshBatch(bookmarks, index = 0, retries = 2) {
-        const batchSize = 200;
-        const delay = 10000;
-        const batch = bookmarks.slice(index, index + batchSize);
-    
+        const batch = bookmarks.slice(index, index + 1);
+
         if (batch.length) {
             try {
-                await Promise.all(batch.map(bookmark => getThumbnails(bookmark.url, bookmark.id, bookmark.parentId, { quickRefresh: true })));
-                // todo show progress in UI
-                // todo: we might need to refactor this to promises or timers so the worker doesnt kill the process with a batch scheduled
-                setTimeout(() => refreshBatch(bookmarks, index + batchSize, retries), delay);
+                // 逐个处理，避免同时开多个弹窗导致焦点失控
+                for (const bookmark of batch) {
+                    await getThumbnails(bookmark.url, bookmark.id, bookmark.parentId, { forceScreenshot: true });
+                }
+                setTimeout(() => refreshBatch(bookmarks, index + 1, retries), 0);
             } catch (err) {
                 console.log(err);
                 if (retries > 0) {
-                    //console.log(`Retrying batch at index ${index}...`);
-                    setTimeout(() => refreshBatch(bookmarks, index, retries - 1), delay);
+                    setTimeout(() => refreshBatch(bookmarks, index, retries - 1), 0);
                 } else {
-                    //console.log(`Failed to refresh batch at index ${index} after multiple attempts.`);
-                    setTimeout(() => refreshBatch(bookmarks, index + batchSize, retries), delay);
+                    setTimeout(() => refreshBatch(bookmarks, index + 1, retries), 0);
                 }
             }
         } else {
-            //refreshOpen(); // not needed here it happens when thumbnails are saved
+            // all done
         }
     }
 
@@ -324,6 +327,84 @@ async function handleRefreshAll(data) {
         console.log(err);
     });
     refreshBatch(data.bookmarks);
+}
+
+async function handleRefreshTitle(data) {
+    if (!data.url || !data.id) return;
+    try {
+        const title = await fetchPageTitle(data.url);
+        if (title) {
+            await chrome.bookmarks.update(data.id, { title });
+        }
+    } catch (err) {
+        console.log('refreshTitle error:', err);
+    }
+}
+
+async function handleRefreshAllTitles(data) {
+    const bookmarks = data.bookmarks;
+    if (!bookmarks || !bookmarks.length) return;
+
+    for (const bookmark of bookmarks) {
+        try {
+            const title = await fetchPageTitle(bookmark.url);
+            if (title) {
+                await chrome.bookmarks.update(bookmark.id, { title });
+            }
+        } catch (err) {
+            console.log('refreshAllTitles error for', bookmark.url, err);
+        }
+    }
+    refreshOpen();
+}
+
+function fetchPageTitle(url) {
+    return new Promise((resolve) => {
+        chrome.windows.create({
+            url: url,
+            focused: false,
+            width: 1,
+            height: 1,
+            left: 0,
+            top: 0,
+            type: 'popup'
+        }).then((popup) => {
+            if (!popup.tabs || !popup.tabs.length) {
+                chrome.windows.remove(popup.id);
+                return resolve(null);
+            }
+            const tabId = popup.tabs[0].id;
+            let resolved = false;
+
+            const checkTitle = () => {
+                if (resolved) return;
+                chrome.tabs.get(tabId).then(tab => {
+                    if (tab.title && tab.title !== url && !tab.title.startsWith('about:')) {
+                        resolved = true;
+                        chrome.windows.remove(popup.id);
+                        resolve(tab.title);
+                    }
+                });
+            };
+
+            // check after a delay to let the page load
+            setTimeout(checkTitle, 2000);
+            setTimeout(() => { checkTitle(); }, 4000);
+            setTimeout(() => {
+                if (!resolved) {
+                    checkTitle();
+                    // checkTitle 是异步的，给一次机会
+                    setTimeout(() => {
+                        if (!resolved) {
+                            resolved = true;
+                            chrome.windows.remove(popup.id);
+                            resolve(null);
+                        }
+                    }, 1000);
+                }
+            }, 7000);
+        }).catch(() => resolve(null));
+    });
 }
 
 async function createBookmarkFromContextMenu(tab) {

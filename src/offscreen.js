@@ -56,7 +56,7 @@ async function handleMessages(message) {
         // If we have a screenshot, reserve the last spot for it and only take 4 webpage images
         const maxWebpageImages = processedScreenshot ? 5 : 6;
         thumbs = resizedImages.filter(item => item).slice(0, maxWebpageImages);
-        
+
         // Always add the screenshot as the last image if available
         if (processedScreenshot) {
             thumbs.push(processedScreenshot);

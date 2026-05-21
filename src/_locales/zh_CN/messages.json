@@ -223,6 +223,33 @@
   "optionNewDialsLast": {
     "message": "新建在末尾"
   },
+  "refreshTitle": {
+    "message": "刷新标题"
+  },
+  "refreshAllThumbnails": {
+    "message": "刷新所有缩略图..."
+  },
+  "refreshAllTitles": {
+    "message": "刷新所有标题..."
+  },
+  "refreshAllTitle": {
+    "message": "刷新所有缩略图？"
+  },
+  "refreshAllDesc": {
+    "message": "这将为当前页面上的所有拨号获取新图像。可能需要一些时间！此模式不进行截图。"
+  },
+  "refreshAllBtn": {
+    "message": "全部"
+  },
+  "refreshMissingBtn": {
+    "message": "仅缺失"
+  },
+  "refreshAllTitlesTitle": {
+    "message": "刷新所有标题？"
+  },
+  "refreshAllTitlesDesc": {
+    "message": "将抓取网页标题来更新书签名称。仅处理当前文件夹。"
+  },
   "optionNewDialsFirst": {
     "message": "新建在开头"
   }

@@ -223,6 +223,33 @@
   "optionNewDialsLast": {
     "message": "新規を最後"
   },
+  "refreshTitle": {
+    "message": "タイトルを更新"
+  },
+  "refreshAllThumbnails": {
+    "message": "すべてのサムネイルを更新..."
+  },
+  "refreshAllTitles": {
+    "message": "すべてのタイトルを更新..."
+  },
+  "refreshAllTitle": {
+    "message": "すべてのサムネイルを更新しますか？"
+  },
+  "refreshAllDesc": {
+    "message": "このページのすべてのダイヤルの新しい画像を取得します。時間がかかる場合があります！このモードではスクリーンショットは撮影されません。"
+  },
+  "refreshAllBtn": {
+    "message": "すべて"
+  },
+  "refreshMissingBtn": {
+    "message": "不足のみ"
+  },
+  "refreshAllTitlesTitle": {
+    "message": "すべてのタイトルを更新しますか？"
+  },
+  "refreshAllTitlesDesc": {
+    "message": "Webページのタイトルを取得してブックマーク名を更新します。現在のフォルダのみ処理されます。"
+  },
   "optionNewDialsFirst": {
     "message": "新規を最初"
   }
