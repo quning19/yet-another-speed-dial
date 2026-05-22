@@ -84,6 +84,8 @@ const color_picker = document.getElementById("color-picker");
 const color_picker_wrapper = document.getElementById("color-picker-wrapper");
 const textColor_picker = document.getElementById("textColor-picker");
 const textColor_picker_wrapper = document.getElementById("textColor-picker-wrapper");
+const dialBgColorPicker = document.getElementById("dialBgColorPicker");
+const dialBgColorPickerBtn = document.getElementById("dialBgColorPickerBtn");
 const imgInput = document.getElementById("file");
 const imgPreview = document.getElementById("preview");
 const previewOverlay = document.getElementById("previewOverlay");
@@ -174,6 +176,7 @@ let defaults = {
     maxCols: '100',
     defaultSort: 'first',
     textColor: '#ffffff',
+    dialBgColor: '#ffffff80',
     dialSize: 'large',
     dialRatio: 'wide',
     folderTabFontSize: 'medium',
@@ -1168,9 +1171,7 @@ async function printBookmarks(bookmarks, parentId) {
                 let content = document.createElement('div');
                 content.setAttribute('id', bookmark.parentId + "-" + bookmark.id);
                 content.classList.add('tile-content');
-                //content.style.backgroundImage = thumbBg ? `url('${thumbUrl}'), ${thumbBg}` : '';
-                //content.style.backgroundColor = thumbBg ? '' : 'rgba(255, 255, 255, 0.5)';
-                content.style.backgroundColor =  'rgba(255, 255, 255, 0.5)';
+                content.style.backgroundColor = settings.dialBgColor || '#ffffff80';
 
                 let title = document.createElement('div');
                 title.classList.add('tile-title');
@@ -2236,6 +2237,8 @@ function applySettings() {
         color_picker_wrapper.style.backgroundColor = settings.backgroundColor;
         textColor_picker.value = settings.textColor;
         textColor_picker_wrapper.style.backgroundColor = settings.textColor;
+        dialBgColorPicker.value = settings.dialBgColor || '#ffffff80';
+        dialBgColorPickerBtn.style.setProperty('--dial-bg-color', dialBgColorPicker.value);
         showTitlesInput.checked = settings.showTitles;
         showCreateDialInput.checked = settings.showAddSite;
         largeTilesInput.checked = settings.largeTiles;
@@ -2285,6 +2288,7 @@ function saveSettings() {
     settings.wallpaperSrc = imgPreview.src;
     settings.backgroundColor = color_picker.value;
     settings.textColor = textColor_picker.value;
+    settings.dialBgColor = dialBgColorPicker.value;
     settings.showTitles = showTitlesInput.checked;
     settings.showAddSite = showCreateDialInput.checked;
     settings.largeTiles = largeTilesInput.checked;
@@ -2728,6 +2732,25 @@ modalBgColorPickerInput.addEventListener('input', function () {
     const color = this.value;
     // set the our button color to match
     modalBgColorPreview.style.fill = color;
+});
+
+dialBgColorPickerBtn.addEventListener('click', function (e) {
+    if (e.target === dialBgColorPicker) return;
+    dialBgColorPicker.dispatchEvent(new Event('click', { bubbles: true }));
+});
+
+dialBgColorPicker.addEventListener('input', function () {
+    dialBgColorPickerBtn.style.setProperty('--dial-bg-color', this.value);
+    saveSettings();
+    const newBg = hexToCssGradient(this.value);
+    document.querySelectorAll('.tile-content').forEach(el => {
+        const img = el.style.backgroundImage;
+        if (img && img.startsWith('url(')) {
+            el.style.backgroundImage = img.replace(/,\s*linear-gradient\([^)]+\).*$/, '') + ', ' + newBg;
+        } else {
+            el.style.backgroundColor = this.value;
+        }
+    });
 });
 
 // helper function for when we set the color picker value programmatically to update our button
@@ -3555,7 +3578,9 @@ function batchApplyImages(elements) {
     requestAnimationFrame(() => {
         elements.forEach(({ element, thumb }) => {
             element.style.backgroundColor = "unset";
-            element.style.backgroundImage = `url('${thumb.thumbnail}'), ${thumb.bgColor}`;
+            const noColor = !thumb.bgColor || thumb.bgColor === 'rgba(0, 0, 0, 0)' || thumb.bgColor === 'linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,0) 50%)';
+            const bg = noColor ? hexToCssGradient(settings.dialBgColor || '#ffffff80') : thumb.bgColor;
+            element.style.backgroundImage = `url('${thumb.thumbnail}'), ${bg}`;
         });
     });
 }

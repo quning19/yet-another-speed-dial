@@ -241,6 +241,9 @@
   "refreshAllBtn": {
     "message": "All"
   },
+  "dialBgColor": {
+    "message": "다이얼 배경색"
+  },
   "refreshMissingBtn": {
     "message": "Only Missing"
   },

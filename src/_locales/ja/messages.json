@@ -241,6 +241,9 @@
   "refreshAllBtn": {
     "message": "すべて"
   },
+  "dialBgColor": {
+    "message": "ダイヤル背景色"
+  },
   "refreshMissingBtn": {
     "message": "不足のみ"
   },

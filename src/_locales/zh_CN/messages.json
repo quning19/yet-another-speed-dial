@@ -241,6 +241,9 @@
   "refreshAllBtn": {
     "message": "全部"
   },
+  "dialBgColor": {
+    "message": "拨号背景色"
+  },
   "refreshMissingBtn": {
     "message": "仅缺失"
   },
